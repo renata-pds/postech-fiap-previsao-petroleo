@@ -14,5 +14,5 @@ O usuário pode:
 ## 🚀 Como rodar a aplicação
 
 ### Acesse a aplicação pelo link abaixo:
-```bash
+
 **[Acesse a aplicação aqui!](https://postech-fiap-previsao-petroleo-u4u34j6bomajilhvgt3nhg.streamlit.app/)**
