@@ -13,7 +13,8 @@ O usuário pode:
 
 ## 🚀 Como rodar a aplicação
 
-### 1. Clonar o repositório
+### Acesse a aplicação pelo link abaixo:
 ```bash
-git clone https://github.com/renata-pds/postech-fiap-previsao-petroleo.git
-cd postech-fiap-previsao-petroleo
+
+Acesse a aplicação pelo link abaixo:  
+[Abrir App no Streamlit](https://postech-fiap-previsao-petroleo-u4u34j6bomajilhvgt3nhg.streamlit.app/)
