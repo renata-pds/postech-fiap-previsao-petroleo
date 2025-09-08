@@ -1,11 +1,17 @@
 # ⛽ Previsão do Preço do Petróleo com Random Forest
 
-Este projeto implementa um modelo preditivo baseado em **Random Forest Regressor** para estimar o preço do petróleo em dólar (USD) a partir de séries temporais.  
-O modelo já foi treinado e salvo em `modelo.pkl`, podendo ser carregado em uma aplicação **Streamlit** para auxiliar na tomada de decisão.
+Este projeto fornece uma aplicação **Streamlit** para previsão do preço do petróleo em USD usando **Random Forest**.
+
+O usuário pode:
+- Usar a base de dados de exemplo `preco_petroleo.xlsx`.
+- Fazer upload do próprio histórico.
+- Treinar ou re-treinar o modelo rapidamente.
+- Visualizar gráficos de histórico e previsão.
+- Baixar as previsões em CSV.
 
 ---
 
-## 🚀 Como rodar o projeto
+## 🚀 Como rodar a aplicação
 
 ### 1. Clonar o repositório
 ```bash
