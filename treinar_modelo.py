@@ -6,7 +6,7 @@ import joblib
 # ===========================
 # Carregar dados
 # ===========================
-df = pd.read_excel("preco_petroleo_reduzida.xlsx").sort_values("data")
+df = pd.read_excel("preco_petroleo.xlsx").sort_values("data")
 df["data"] = pd.to_datetime(df["data"])
 df = df.set_index("data")
 y = df["preco_petroleo"].astype(float)
