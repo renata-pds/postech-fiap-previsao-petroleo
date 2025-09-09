@@ -3,11 +3,9 @@
 Este projeto fornece uma aplicação **Streamlit** para previsão do preço do petróleo em USD usando **Random Forest**.
 
 O usuário pode:
-- Usar a base de dados de exemplo `preco_petroleo.xlsx`.
-- Fazer upload do próprio histórico.
-- Treinar ou re-treinar o modelo rapidamente.
-- Visualizar gráficos de histórico e previsão.
-- Baixar as previsões em CSV.
+- Visualizar o gráfico com histórico e previsão;
+- Baixar, em formato csv, a base com o resultado da previsão;
+- Baixar, em formato png, a visão do gráfico.
 
 ---
 
