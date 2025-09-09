@@ -1,50 +1,78 @@
+import streamlit as st
 import pandas as pd
 import numpy as np
-import streamlit as st
 import matplotlib.pyplot as plt
-from pathlib import Path
+import matplotlib.dates as mdates
 import joblib
-from sklearn.ensemble import RandomForestRegressor
 
+
+# ===========================
+# Configuração da página
+# ===========================
 st.set_page_config(page_title="Previsão do Preço do Petróleo", layout="wide")
+
+# ===========================
+# Barra lateral fixa
+# ===========================
+st.sidebar.title("Desenvolvedora:")
+st.sidebar.write("Renata Paes da Silva - RM359515")
+
+# ===========================
+# Título e introdução
+# ===========================
 st.title("⛽ Previsão do Preço do Petróleo (USD)")
-st.caption("Aplicação Streamlit usando Random Forest — carrega modelo treinado ou permite re-treinamento rápido.")
+st.markdown("""
+Este aplicativo utiliza um **Random Forest Regressor** para prever o preço do petróleo.  
 
-# --------- Helpers ---------
-def load_default_data():
-    local = Path('preco_petroleo.xlsx')
-    if local.exists():
-        return pd.read_excel(local)
-    return None
+**Motivo da escolha do Random Forest:**
+- Captura relações não lineares sem precisar de pré-processamento complexo.
+- Robusto a outliers e ruídos nos dados históricos.
+- Permite gerar previsões consistentes mesmo com dados temporais limitados.
+""")
 
-def prep_features(y):
-    X = pd.DataFrame()
-    for lag in range(1, 8):
-        X[f"lag_{lag}"] = y.shift(lag)
-    X["rolling_mean_3"] = y.shift(1).rolling(3).mean()
-    X["rolling_mean_7"] = y.shift(1).rolling(7).mean()
-    X = X.dropna()
-    y_aligned = y[X.index]
-    return X, y_aligned
+# ===========================
+# Carregar modelo e dados
+# ===========================
+model = joblib.load("modelo.pkl")
+df = pd.read_excel("preco_petroleo_reduzida.xlsx").sort_values("data")
+df["data"] = pd.to_datetime(df["data"])
+df = df.set_index("data")
+y = df["preco_petroleo"].astype(float)
 
-def train_rf(y):
-    X, y_train = prep_features(y)
-    rf = RandomForestRegressor(n_estimators=100, random_state=42)
-    rf.fit(X, y_train)
-    return rf
+# ===========================
+# Criar features
+# ===========================
+X = pd.DataFrame(index=df.index)
+X['month'] = df.index.month
+X['day'] = df.index.day
+X['weekday'] = df.index.weekday
 
-def forecast_future(model, y, n_days=30):
+for lag in range(1, 8):
+    X[f'lag_{lag}'] = y.shift(lag)
+
+X['rolling_mean_3'] = y.shift(1).rolling(window=3).mean()
+X['rolling_mean_7'] = y.shift(1).rolling(window=7).mean()
+X = X.dropna()
+
+# ===========================
+# Função de previsão
+# ===========================
+def prever_precos_futuros(model, X, y, n_days=30):
     last_price = y.iloc[-7:].tolist()
     future_preds = []
     future_dates = []
 
     for i in range(n_days):
-        next_date = y.index[-1] + pd.Timedelta(days=i+1)
+        next_date = X.index[-1] + pd.Timedelta(days=i+1)
         future_dates.append(next_date)
 
-        new_row = {}
+        new_row = {
+            'month': next_date.month,
+            'day': next_date.day,
+            'weekday': next_date.weekday()
+        }
         for lag in range(1, 8):
-            new_row[f"lag_{lag}"] = last_price[-lag]
+            new_row[f'lag_{lag}'] = last_price[-lag]
         new_row['rolling_mean_3'] = np.mean(last_price[-3:])
         new_row['rolling_mean_7'] = np.mean(last_price[-7:])
 
@@ -53,85 +81,61 @@ def forecast_future(model, y, n_days=30):
         future_preds.append(pred)
         last_price.append(pred)
 
-    return pd.DataFrame({'data': future_dates, 'preco_previsto': future_preds})
+    future_df = pd.DataFrame({
+        'Data': pd.to_datetime(future_dates),
+        'Preço Previsto': np.array(future_preds)
+    })
+    return future_df
 
-def save_model(model, path: Path):
-    joblib.dump(model, path)
+# ===========================
+# Slider para escolher quantidade de dias
+# ===========================
+n_dias = st.slider("Selecione o número de dias que deseja fazer a previsão", min_value=1, max_value=30, value=1)
 
-def load_model(path: Path):
-    return joblib.load(path)
+# ===========================
+# Gerar previsão
+# ===========================
+future_df = prever_precos_futuros(model, X, y, n_days=n_dias)
 
-# --------- Sidebar ---------
-st.sidebar.header("Configurações")
-n_days = st.sidebar.number_input("Horizonte de previsão (dias):", min_value=7, max_value=90, value=30, step=1)
-retrain = st.sidebar.checkbox("Treinar/Re-treinar modelo com os dados carregados", value=False)
+# ===========================
+# Mostrar indicadores
+# ===========================
+st.subheader("Indicadores da Previsão")
+col1, col2, col3 = st.columns(3)
+col1.metric("Último Preço Real", f"{y.iloc[-1]:.2f}")
+col2.metric(f"Preço Previsto para o dia {future_df['Data'].dt.strftime('%d/%m/%Y').iloc[-1]}", f"{future_df['Preço Previsto'].iloc[-1]:.2f}")
+col3.metric("Média da Previsão", f"{future_df['Preço Previsto'].mean():.2f}")
 
-uploaded = st.file_uploader("Faça upload de um arquivo Excel com colunas 'data' e 'preco_petroleo' (ou deixe em branco para usar o padrão)", type=["xlsx"])
+# ===========================
+# Mostrar tabela com previsão
+# ===========================
+st.subheader("Tabela de Previsão")
+tabela_formatada = future_df.copy()
+tabela_formatada['Data'] = tabela_formatada['Data'].dt.strftime('%d/%m/%Y')
+tabela_formatada['Preço Previsto'] = tabela_formatada['Preço Previsto'].apply(lambda x: f"{x:.2f} USD")
 
-# --------- Data loading ---------
-if uploaded is not None:
-    df = pd.read_excel(uploaded)
-elif load_default_data() is not None:
-    df = load_default_data()
-else:
-    st.info("Nenhum dado fornecido e arquivo padrão não encontrado. Por favor, forneça os dados.")
-    st.stop()
+# Exibir sem índice numérico
+st.dataframe(tabela_formatada.style.hide(axis="index"), use_container_width=True)
 
-st.subheader("Amostra dos Dados")
-st.dataframe(df.head(20))
+# ===========================
+# Plotar gráfico
+# ===========================
+historico_visual = 60
+y_recent = y.iloc[-historico_visual:]
 
-df['data'] = pd.to_datetime(df['data'])
-df = df.sort_values('data').set_index('data')
-y = df['preco_petroleo'].astype(float)
+fig, ax = plt.subplots(figsize=(14,6))
+ax.plot(y_recent.index, y_recent, label=f'Preço Real (Últimos {historico_visual} dias)', color='blue', linewidth=2)
+ax.plot(future_df['Data'], future_df['Preço Previsto'], label=f'Previsão Futura ({n_dias} dias)', color='red', linestyle='--', linewidth=2, marker='o')
 
-# --------- Model loading / training ---------
-model_path = Path("modelo.pkl")
-model = None
+# Formatando as datas
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
 
-if retrain:
-    with st.spinner("Treinando modelo Random Forest..."):
-        model = train_rf(y)
-        save_model(model, model_path)
-    st.success("✅ Modelo treinado com sucesso!")
-else:
-    if model_path.exists():
-        model = load_model(model_path)
-        st.success(f"✅ Modelo carregado de '{model_path.name}'.")
-    else:
-        st.warning("Modelo não encontrado. Treinando modelo rapidamente agora...")
-        model = train_rf(y)
-        save_model(model, model_path)
-        st.success("✅ Modelo treinado com sucesso!")
-
-# --------- Forecast ---------
-future_df = forecast_future(model, y, n_days=int(n_days))
-
-st.subheader("Previsão de Preços Futuros")
-st.write(f"Horizonte: **{n_days} dias** | Última data de treino: **{y.index.max().date()}**")
-
-# Plot histórico + previsão
-fig, ax = plt.subplots(figsize=(12,6))
-ax.plot(y.index, y, label="Histórico")
-ax.plot(future_df['data'], future_df['preco_previsto'], label="Previsão", linestyle="--", color='red')
-ax.set_xlabel("Data")
-ax.set_ylabel("Preço do Petróleo (USD)")
-ax.set_title("Histórico x Previsão")
+ax.set_xlabel('Data')
+ax.set_ylabel('Preço do Petróleo')
+ax.set_title('Preço do Petróleo: Histórico Recente x Previsão Futura')
 ax.legend()
 ax.grid(True)
+plt.xticks(rotation=45)
+
 st.pyplot(fig)
 
-# Mostrar tabela
-st.subheader("Tabela de Previsão")
-st.dataframe(future_df.set_index('data'))
-
-# Download CSV
-csv = future_df.to_csv(index=False).encode("utf-8")
-st.download_button("Baixar previsão em CSV", data=csv, file_name="previsao_petroleo.csv", mime="text/csv")
-
-st.divider()
-with st.expander("ℹ️ Como este modelo funciona"):
-    st.markdown(
-        "- Pré-processamento: criação de lags e médias móveis.\n"
-        "- Modelo: Random Forest Regressor treinado com os dados fornecidos.\n"
-        "- O app permite re-treinar rapidamente ou usar modelo salvo para previsão."
-    )
